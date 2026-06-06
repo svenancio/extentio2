@@ -1,0 +1,18 @@
+# Ambiente virtual
+venv/
+
+# Modelo MediaPipe (arquivo grande, baixar separadamente)
+models/
+
+# Saídas geradas
+output/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# Sistema
+.DS_Store
+*.log
