@@ -66,33 +66,22 @@ class FaceDetector:
 
         return result_points
 
-    def _detect_landmarks(self, image_rgb: np.ndarray):
-        """Roda o landmarker numa imagem e retorna o resultado bruto."""
+    def _run_landmarks(self, image_rgb: np.ndarray):
+        """Roda apenas o landmarker — operação leve."""
         mp_image = mp.Image(
             image_format=mp.ImageFormat.SRGB,
             data=image_rgb
         )
         return self.landmarker.detect(mp_image)
 
-    def detect(self, image_rgb: np.ndarray):
+    def _select_face(self, result, image_rgb: np.ndarray):
         """
-        Pipeline:
-          1. Detecta rostos na imagem ORIGINAL
-          2. Filtra por tamanho mínimo
-          3. Segmenta pessoa + aplica CLAHE → imagem canônica
-          4. Extrai pontos semânticos na imagem canônica
+        Filtra rostos por tamanho mínimo e seleciona conforme FACE_SELECTION.
+        Retorna dict com dados básicos (sem canonical_image ainda).
         """
-        # 1. Detecção na imagem original
-        result = self._detect_landmarks(image_rgb)
-
-        if not result.face_landmarks:
-            print("[Detector] Nenhum rosto detectado.")
-            return None
-
         img_h, img_w = image_rgb.shape[:2]
+        valid_faces  = []
 
-        # 2. Filtra rostos por tamanho
-        valid_faces = []
         for i, landmarks in enumerate(result.face_landmarks):
             xs = [lm.x * img_w for lm in landmarks]
             ys = [lm.y * img_h for lm in landmarks]
@@ -117,13 +106,12 @@ class FaceDetector:
                 "blendshapes": blendshapes,
                 "bbox":        (x_min, y_min, w, h),
                 "image_size":  (img_w, img_h),
+                "source_image": image_rgb,
             })
 
         if not valid_faces:
-            print("[Detector] Nenhum rosto válido após filtro de tamanho.")
             return None
 
-        # 3. Seleciona o rosto
         if config.FACE_SELECTION == "largest":
             selected = max(valid_faces, key=lambda f: f["bbox"][2])
         else:
@@ -131,25 +119,46 @@ class FaceDetector:
 
         print(f"[Detector] {len(valid_faces)} rosto(s) válido(s). "
               f"Selecionado: {selected['bbox'][2]}px de largura.")
+        return selected
 
-        # 4. Segmentação + CLAHE na imagem original completa
+    def detect(self, image_rgb: np.ndarray):
+        """
+        Detecção LEVE — só landmarks, sem segmentação nem CLAHE.
+        Usada durante a contagem de permanência.
+
+        Retorna dict com dados básicos do rosto, ou None.
+        """
+        result = self._run_landmarks(image_rgb)
+
+        if not result.face_landmarks:
+            print("[Detector] Nenhum rosto detectado.")
+            return None
+
+        return self._select_face(result, image_rgb)
+
+    def process_canonical(self, face: dict) -> dict:
+        """
+        Processamento PESADO — segmentação + CLAHE + pontos semânticos.
+        Chamado apenas uma vez, quando o rosto atinge o threshold de permanência.
+
+        Recebe o dict básico retornado por detect() e retorna versão completa.
+        """
+        image_rgb = face["source_image"]
+        landmarks = face["landmarks"]
+
+        print("[Detector] Processando imagem canônica...")
         canonical, mask, meta = self.processor.process(image_rgb)
 
-        # 5. Extrai pontos semânticos na imagem canônica
-        semantic_points = self._extract_semantic_points(
-            selected["landmarks"], canonical
-        )
-
+        semantic_points = self._extract_semantic_points(landmarks, canonical)
         print(f"[Detector] {len(semantic_points)} pontos semânticos extraídos.")
 
-        selected.update({
+        return {
+            **face,
             "semantic_points":  semantic_points,
             "canonical_image":  canonical,
             "mask":             mask,
             "correction_meta":  meta,
-        })
-
-        return selected
+        }
 
     def close(self):
         self.landmarker.close()

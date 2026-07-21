@@ -1,7 +1,6 @@
 import pygame
 import sys
 import os
-import numpy as np
 
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
@@ -9,6 +8,7 @@ import config
 from src.camera import Camera
 from src.image_utils import ImageProcessor
 from src.detector import FaceDetector
+from src.presence import PresenceDetector
 
 GROUP_COLORS = {
     "left_eye":      (0,   200, 255),
@@ -42,6 +42,7 @@ clock     = pygame.time.Clock()
 camera    = Camera()
 processor = ImageProcessor()
 detector  = FaceDetector(processor)
+presence  = PresenceDetector()
 font      = pygame.font.SysFont("monospace", 24)
 
 if not camera.start():
@@ -52,7 +53,7 @@ frame_surface     = None
 canonical_surface = None
 status_text       = "Aguardando snapshot..."
 last_face         = None
-show_canonical    = False  # tecla C alterna
+show_canonical    = False
 
 print("C = alternar imagem canônica | ESC = sair")
 
@@ -76,31 +77,40 @@ while True:
                 surface, (config.DISPLAY_WIDTH, config.DISPLAY_HEIGHT)
             )
 
-            face = detector.detect(image)
-            if face:
-                last_face = face
+            # Detecção leve a cada snapshot
+            face   = detector.detect(image)
+            stable = presence.update(face)
 
-                can = face["canonical_image"]
+            if stable:
+                # Processamento pesado só aqui
+                full_face = detector.process_canonical(presence.stable_face)
+                last_face = full_face
+                presence.reset()
+
+                can      = last_face["canonical_image"]
                 can_surf = pygame.surfarray.make_surface(can.swapaxes(0, 1))
                 canonical_surface = pygame.transform.scale(
                     can_surf, (config.DISPLAY_WIDTH, config.DISPLAY_HEIGHT)
                 )
 
-                x, y, w, h = face["bbox"]
-                n   = len(face["semantic_points"])
-                lum = face["correction_meta"]["luminosity"]
-                did = "corrigido" if face["correction_meta"]["corrected"] else "original"
-                if face["blendshapes"]:
-                    top = max(face["blendshapes"], key=lambda b: b["score"])
-                    status_text = (f"Rosto {w}x{h}px | {n} pts | "
+                x, y, w, h = last_face["bbox"]
+                n   = len(last_face["semantic_points"])
+                lum = last_face["correction_meta"]["luminosity"]
+                did = "corrigido" if last_face["correction_meta"]["corrected"] else "original"
+                if last_face["blendshapes"]:
+                    top = max(last_face["blendshapes"], key=lambda b: b["score"])
+                    status_text = (f"ESTÁVEL — {w}x{h}px | {n} pts | "
                                    f"lum={lum:.0f} ({did}) | "
                                    f"{top['name']} {top['score']:.2f}")
                 else:
-                    status_text = f"Rosto {w}x{h}px | {n} pts | lum={lum:.0f} ({did})"
+                    status_text = f"ESTÁVEL — {w}x{h}px | {n} pts | lum={lum:.0f} ({did})"
+
+            elif face is None:
+                status_text = "Nenhum rosto detectado"
             else:
-                last_face         = None
-                canonical_surface = None
-                status_text       = "Nenhum rosto detectado"
+                x, y, w, h = face["bbox"]
+                status_text = (f"Detectando... {presence.progress*100:.0f}% "
+                               f"({w}x{h}px)")
 
     screen.fill(config.BACKGROUND_COLOR)
 
@@ -108,7 +118,7 @@ while True:
     if active:
         screen.blit(active, (0, 0))
 
-    if last_face:
+    if last_face and "semantic_points" in last_face:
         img_w, img_h = last_face["image_size"]
         scale_x = config.DISPLAY_WIDTH  / img_w
         scale_y = config.DISPLAY_HEIGHT / img_h
@@ -124,7 +134,9 @@ while True:
             radius = 5 if pt["type"] == "centroid" else 3
             pygame.draw.circle(screen, color, (px, py), radius)
 
-    mode  = "CANÔNICA (fundo removido)" if show_canonical else "ORIGINAL"
+    presence.draw(screen)
+
+    mode  = "CANÔNICA" if show_canonical else "ORIGINAL"
     label = font.render(f"[{mode}] {status_text}", True, (255, 0, 0))
     screen.blit(label, (20, 20))
 

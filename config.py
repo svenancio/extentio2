@@ -36,3 +36,16 @@ MIN_CONTRAST_DISTANCE = 30  # distância mínima de cor (0-441) para aceitar pon
 CLAHE_LUMINOSITY_THRESHOLD = 100   # luminosidade média mínima (0-255) antes de corrigir
 CLAHE_CLIP_LIMIT           = 3.0   # intensidade do CLAHE (2.0-4.0 recomendado)
 CLAHE_TILE_GRID            = (8, 8) # granularidade da equalização local
+
+# Permanência do rosto
+PRESENCE_THRESHOLD      = 4     # frames consecutivos para confirmar rosto
+PRESENCE_MAX_MOVEMENT   = 80    # deslocamento máximo do centro em pixels
+PRESENCE_MAX_SIZE_DIFF  = 60    # variação máxima de largura do bbox em pixels
+
+# Feedback visual de permanência
+PRESENCE_SHOW_FEEDBACK  = True
+PRESENCE_ARC_RADIUS     = 60    # raio do semicírculo em pixels
+PRESENCE_ARC_THICKNESS  = 6     # espessura do arco em pixels
+PRESENCE_ARC_MARGIN     = 20    # margem da borda inferior em pixels
+PRESENCE_ARC_COLOR      = (40, 40, 40)     # cor do arco de progresso
+PRESENCE_ARC_BG_COLOR   = (200, 200, 200)  # cor do arco de fundo
