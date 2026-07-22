@@ -8,6 +8,7 @@ from src.landmarks_map import SEMANTIC_GROUPS
 from src.image_utils import ImageProcessor
 from src.framing import crop_and_zoom
 from src.palette import extract_palette
+from src.expression import map_expression_to_style
 
 
 class FaceDetector:
@@ -161,17 +162,24 @@ class FaceDetector:
 
         palette = extract_palette(sketch_image, sketch_mask)
 
+        expression_style = map_expression_to_style(face["blendshapes"])
+        print(f"[Detector] Estilo de expressão ({config.EXPRESSION_MAPPING_MODE}): "
+              f"espessura={expression_style['line_thickness']:.1f} "
+              f"agressividade={expression_style['aggressiveness']:.2f} "
+              f"densidade={expression_style['density']:.2f}")
+
         return {
             **face,
-            "semantic_points":  semantic_points,
-            "canonical_image":  canonical,
-            "sketch_image":     sketch_image,
-            "sketch_mask":      sketch_mask,
-            "sketch_points":    sketch_points,
-            "crop_box":         crop_box,
-            "palette":          palette,
-            "mask":             mask,
-            "correction_meta":  meta,
+            "semantic_points":   semantic_points,
+            "canonical_image":   canonical,
+            "sketch_image":      sketch_image,
+            "sketch_mask":       sketch_mask,
+            "sketch_points":     sketch_points,
+            "crop_box":          crop_box,
+            "palette":           palette,
+            "expression_style":  expression_style,
+            "mask":              mask,
+            "correction_meta":   meta,
         }
 
     def close(self):

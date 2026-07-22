@@ -108,13 +108,21 @@ while True:
                 n   = len(last_face["semantic_points"])
                 lum = last_face["correction_meta"]["luminosity"]
                 did = "corrigido" if last_face["correction_meta"]["corrected"] else "original"
+
+                es = last_face["expression_style"]
+                style_text = (f"esp={es['line_thickness']:.1f} "
+                               f"agr={es['aggressiveness']:.2f} "
+                               f"den={es['density']:.2f}")
+                if config.EXPRESSION_MAPPING_MODE == "dominant":
+                    style_text += f" ({es.get('_dominant', '?')})"
+
                 if last_face["blendshapes"]:
                     top = max(last_face["blendshapes"], key=lambda b: b["score"])
                     status_text = (f"ESTÁVEL — {w}x{h}px | {n} pts | "
                                    f"lum={lum:.0f} ({did}) | "
-                                   f"{top['name']} {top['score']:.2f}")
+                                   f"{top['name']} {top['score']:.2f} | {style_text}")
                 else:
-                    status_text = f"ESTÁVEL — {w}x{h}px | {n} pts | lum={lum:.0f} ({did})"
+                    status_text = f"ESTÁVEL — {w}x{h}px | {n} pts | lum={lum:.0f} ({did}) | {style_text}"
 
             elif face is None:
                 status_text = "Nenhum rosto detectado"

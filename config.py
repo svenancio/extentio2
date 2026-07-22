@@ -64,3 +64,38 @@ PALETTE_CONTRAST_SCALE    = 1.25  # multiplicador de contraste de luminosidade (
 # 0 = sem efeito (cor como veio do ajuste HSV), 1 = saturação total (replica o algoritmo original)
 PALETTE_SATURATE_AMOUNT   = 1.0
 PALETTE_ANALYSIS_SIZE     = 150   # thumbnail (px) usado para acelerar o K-Means, não afeta a paleta final
+
+# Mapeamento de expressão (blendshapes) → parâmetros de desenho
+EXPRESSION_MAPPING_MODE = "dominant"  # "weighted" (média ponderada) ou "dominant" (expressão dominante rege tudo)
+
+# Faixas de saída de cada parâmetro (usadas no modo "weighted", que mapeia 0-1 → faixa real)
+EXPRESSION_RANGES = {
+    "line_thickness": (2, 8),      # px
+    "aggressiveness": (0.0, 1.0),  # 0 = traçado suave/curvo, 1 = anguloso/brusco
+    "density":        (0.5, 1.5),  # multiplicador sobre a quantidade de traços
+}
+
+# Pesos por dimensão de expressão, usados no modo "weighted".
+# Não precisam somar 1 — são normalizados pela soma dos pesos de cada parâmetro.
+EXPRESSION_WEIGHTS = {
+    "line_thickness": {"jaw_open": 0.5, "brow_furrow": 0.2, "cheek_puff": 0.3},
+    "aggressiveness":  {"brow_furrow": 0.4, "nose_sneer": 0.3, "jaw_open": 0.3},
+    "density":         {"smile": 0.4, "eye_wide": 0.3, "brow_raise": 0.3},
+}
+
+# Estilos fixos por expressão dominante, usados no modo "dominant".
+# "neutro" é o fallback quando nenhuma expressão ultrapassa EXPRESSION_NEUTRAL_THRESHOLD.
+EXPRESSION_STYLES = {
+    "smile":        {"line_thickness": 2, "aggressiveness": 0.2,  "density": 1.3},
+    "frown":        {"line_thickness": 5, "aggressiveness": 0.6,  "density": 0.7},
+    "brow_raise":   {"line_thickness": 3, "aggressiveness": 0.3,  "density": 1.1},
+    "brow_furrow":  {"line_thickness": 6, "aggressiveness": 0.8,  "density": 0.8},
+    "eye_squint":   {"line_thickness": 4, "aggressiveness": 0.5,  "density": 0.9},
+    "eye_wide":     {"line_thickness": 2, "aggressiveness": 0.2,  "density": 1.3},
+    "jaw_open":     {"line_thickness": 7, "aggressiveness": 0.9,  "density": 0.6},
+    "mouth_pucker": {"line_thickness": 3, "aggressiveness": 0.4,  "density": 1.0},
+    "cheek_puff":   {"line_thickness": 5, "aggressiveness": 0.5,  "density": 0.8},
+    "nose_sneer":   {"line_thickness": 6, "aggressiveness": 0.85, "density": 0.7},
+    "neutro":       {"line_thickness": 3, "aggressiveness": 0.3,  "density": 1.0},
+}
+EXPRESSION_NEUTRAL_THRESHOLD = 0.15  # score mínimo para considerar uma expressão "dominante"
