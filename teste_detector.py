@@ -51,11 +51,13 @@ if not camera.start():
 
 frame_surface     = None
 canonical_surface = None
+sketch_surface    = None
 status_text       = "Aguardando snapshot..."
 last_face         = None
-show_canonical    = False
+VIEW_MODES        = ["original", "canonica", "sketch"]
+view_mode         = "original"
 
-print("C = alternar imagem canônica | ESC = sair")
+print("V = alternar visualização (original/canônica/sketch) | ESC = sair")
 
 while True:
     for event in pygame.event.get():
@@ -66,8 +68,9 @@ while True:
             if event.key == pygame.K_ESCAPE:
                 camera.stop(); detector.close(); processor.close()
                 pygame.quit(); sys.exit()
-            if event.key == pygame.K_c:
-                show_canonical = not show_canonical
+            if event.key == pygame.K_v:
+                idx = (VIEW_MODES.index(view_mode) + 1) % len(VIEW_MODES)
+                view_mode = VIEW_MODES[idx]
 
     if camera.should_capture():
         image = camera.capture()
@@ -93,6 +96,14 @@ while True:
                     can_surf, (config.DISPLAY_WIDTH, config.DISPLAY_HEIGHT)
                 )
 
+                sk       = last_face["sketch_image"]
+                sk_surf  = pygame.surfarray.make_surface(sk.swapaxes(0, 1))
+                # Quadrado, sem esticar — cabe na menor dimensão da tela
+                sketch_display_size = min(config.DISPLAY_WIDTH, config.DISPLAY_HEIGHT)
+                sketch_surface = pygame.transform.scale(
+                    sk_surf, (sketch_display_size, sketch_display_size)
+                )
+
                 x, y, w, h = last_face["bbox"]
                 n   = len(last_face["semantic_points"])
                 lum = last_face["correction_meta"]["luminosity"]
@@ -114,11 +125,31 @@ while True:
 
     screen.fill(config.BACKGROUND_COLOR)
 
-    active = canonical_surface if (show_canonical and canonical_surface) else frame_surface
+    sketch_offset = (0, 0)
+    if view_mode == "canonica":
+        active = canonical_surface
+    elif view_mode == "sketch":
+        active = sketch_surface
+        if active:
+            sketch_offset = ((config.DISPLAY_WIDTH  - active.get_width())  // 2,
+                              (config.DISPLAY_HEIGHT - active.get_height()) // 2)
+    else:
+        active = frame_surface
     if active:
-        screen.blit(active, (0, 0))
+        screen.blit(active, sketch_offset if view_mode == "sketch" else (0, 0))
 
-    if last_face and "semantic_points" in last_face:
+    if view_mode == "sketch" and last_face and "sketch_points" in last_face and sketch_surface:
+        # Pontos já normalizados (0-1) relativos ao canvas do sketch
+        size = sketch_surface.get_width()
+        ox, oy = sketch_offset
+        for pt in last_face["sketch_points"]:
+            px = int(ox + pt["x"] * size)
+            py = int(oy + pt["y"] * size)
+            color  = GROUP_COLORS.get(pt["group"], (255, 255, 255))
+            radius = 5 if pt["type"] == "centroid" else 3
+            pygame.draw.circle(screen, color, (px, py), radius)
+
+    elif last_face and "semantic_points" in last_face:
         img_w, img_h = last_face["image_size"]
         scale_x = config.DISPLAY_WIDTH  / img_w
         scale_y = config.DISPLAY_HEIGHT / img_h
@@ -126,6 +157,11 @@ while True:
         x, y, w, h = last_face["bbox"]
         pygame.draw.rect(screen, (0, 255, 0),
             (int(x*scale_x), int(y*scale_y), int(w*scale_x), int(h*scale_y)), 2)
+
+        if view_mode == "canonica" and "crop_box" in last_face:
+            cx, cy, cw, ch = last_face["crop_box"]
+            pygame.draw.rect(screen, (255, 0, 255),
+                (int(cx*scale_x), int(cy*scale_y), int(cw*scale_x), int(ch*scale_y)), 2)
 
         for pt in last_face["semantic_points"]:
             px = int(pt["x"] * img_w * scale_x)
@@ -136,11 +172,11 @@ while True:
 
     presence.draw(screen)
 
-    mode  = "CANÔNICA" if show_canonical else "ORIGINAL"
+    mode  = {"original": "ORIGINAL", "canonica": "CANÔNICA", "sketch": "SKETCH"}[view_mode]
     label = font.render(f"[{mode}] {status_text}", True, (255, 0, 0))
     screen.blit(label, (20, 20))
 
-    hint = font.render("C = alternar imagem | ESC = sair", True, (180, 180, 180))
+    hint = font.render("V = alternar visualização | ESC = sair", True, (180, 180, 180))
     screen.blit(hint, (20, config.DISPLAY_HEIGHT - 40))
 
     pygame.display.flip()

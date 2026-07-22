@@ -49,3 +49,7 @@ PRESENCE_ARC_THICKNESS  = 6     # espessura do arco em pixels
 PRESENCE_ARC_MARGIN     = 20    # margem da borda inferior em pixels
 PRESENCE_ARC_COLOR      = (40, 40, 40)     # cor do arco de progresso
 PRESENCE_ARC_BG_COLOR   = (200, 200, 200)  # cor do arco de fundo
+
+# Enquadramento e zoom do rosto
+SKETCH_SIZE       = 1080   # tamanho do canvas do sketch, quadrado (px)
+FACE_CROP_MARGIN  = 0.5    # margem extra ao redor do bbox do rosto (0.5 = +50%)

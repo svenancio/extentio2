@@ -6,6 +6,7 @@ from mediapipe.tasks.python import vision as mp_vision
 import config
 from src.landmarks_map import SEMANTIC_GROUPS
 from src.image_utils import ImageProcessor
+from src.framing import crop_and_zoom
 
 
 class FaceDetector:
@@ -152,10 +153,18 @@ class FaceDetector:
         semantic_points = self._extract_semantic_points(landmarks, canonical)
         print(f"[Detector] {len(semantic_points)} pontos semânticos extraídos.")
 
+        sketch_image, sketch_points, crop_box = crop_and_zoom(
+            canonical, face["bbox"], semantic_points
+        )
+        print(f"[Detector] Enquadramento: crop {crop_box} → sketch {config.SKETCH_SIZE}x{config.SKETCH_SIZE}px.")
+
         return {
             **face,
             "semantic_points":  semantic_points,
             "canonical_image":  canonical,
+            "sketch_image":     sketch_image,
+            "sketch_points":    sketch_points,
+            "crop_box":         crop_box,
             "mask":             mask,
             "correction_meta":  meta,
         }
