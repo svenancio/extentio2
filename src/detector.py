@@ -7,6 +7,7 @@ import config
 from src.landmarks_map import SEMANTIC_GROUPS
 from src.image_utils import ImageProcessor
 from src.framing import crop_and_zoom
+from src.palette import extract_palette
 
 
 class FaceDetector:
@@ -153,18 +154,22 @@ class FaceDetector:
         semantic_points = self._extract_semantic_points(landmarks, canonical)
         print(f"[Detector] {len(semantic_points)} pontos semânticos extraídos.")
 
-        sketch_image, sketch_points, crop_box = crop_and_zoom(
-            canonical, face["bbox"], semantic_points
+        sketch_image, sketch_mask, sketch_points, crop_box = crop_and_zoom(
+            canonical, mask, face["bbox"], semantic_points
         )
         print(f"[Detector] Enquadramento: crop {crop_box} → sketch {config.SKETCH_SIZE}x{config.SKETCH_SIZE}px.")
+
+        palette = extract_palette(sketch_image, sketch_mask)
 
         return {
             **face,
             "semantic_points":  semantic_points,
             "canonical_image":  canonical,
             "sketch_image":     sketch_image,
+            "sketch_mask":      sketch_mask,
             "sketch_points":    sketch_points,
             "crop_box":         crop_box,
+            "palette":          palette,
             "mask":             mask,
             "correction_meta":  meta,
         }

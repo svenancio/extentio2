@@ -53,3 +53,14 @@ PRESENCE_ARC_BG_COLOR   = (200, 200, 200)  # cor do arco de fundo
 # Enquadramento e zoom do rosto
 SKETCH_SIZE       = 1080   # tamanho do canvas do sketch, quadrado (px)
 FACE_CROP_MARGIN  = 0.5    # margem extra ao redor do bbox do rosto (0.5 = +50%)
+
+# Paleta de cores (K-Means sobre o sketch, dentro da máscara da pessoa)
+PALETTE_SIZE              = 20     # número de cores (K) extraídas
+PALETTE_HUE_SHIFT         = 0     # deslocamento de matiz em graus (-180 a 180)
+PALETTE_SATURATION_SCALE  = 1.4   # multiplicador de saturação (>1 = mais vivo)
+PALETTE_CONTRAST_SCALE    = 1.25  # multiplicador de contraste de luminosidade (>1 = mais contrastado)
+
+# Saturação total por estiramento de canais RGB (etapa extra, após o ajuste HSV acima)
+# 0 = sem efeito (cor como veio do ajuste HSV), 1 = saturação total (replica o algoritmo original)
+PALETTE_SATURATE_AMOUNT   = 1.0
+PALETTE_ANALYSIS_SIZE     = 150   # thumbnail (px) usado para acelerar o K-Means, não afeta a paleta final

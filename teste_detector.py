@@ -149,6 +149,27 @@ while True:
             radius = 5 if pt["type"] == "centroid" else 3
             pygame.draw.circle(screen, color, (px, py), radius)
 
+        if "palette" in last_face:
+            margin_right = config.DISPLAY_WIDTH - (ox + size)
+            if margin_right > 40:
+                # Espaço sobrando ao lado do quadrado — barra vertical na margem
+                bar_x = ox + size + 10
+                bar_w = margin_right - 20
+                y_cursor = oy
+                for c in last_face["palette"]:
+                    sh = max(1, int(size * c["weight"]))
+                    pygame.draw.rect(screen, c["color"], (bar_x, y_cursor, bar_w, sh))
+                    y_cursor += sh
+            else:
+                # Sem margem lateral — sobrepõe uma faixa na base do próprio canvas
+                swatch_h = 40
+                swatch_y = oy + size - swatch_h
+                x_cursor = ox
+                for c in last_face["palette"]:
+                    sw = max(1, int(size * c["weight"]))
+                    pygame.draw.rect(screen, c["color"], (x_cursor, swatch_y, sw, swatch_h))
+                    x_cursor += sw
+
     elif last_face and "semantic_points" in last_face:
         img_w, img_h = last_face["image_size"]
         scale_x = config.DISPLAY_WIDTH  / img_w
