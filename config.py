@@ -99,3 +99,20 @@ EXPRESSION_STYLES = {
     "neutro":       {"line_thickness": 3, "aggressiveness": 0.3,  "density": 1.0},
 }
 EXPRESSION_NEUTRAL_THRESHOLD = 0.15  # score mínimo para considerar uma expressão "dominante"
+
+# Agentes "caneta" — traçado vetorial por proximidade de cor
+# Quantidade de canetas: mínimo = 1 centróide por parte do rosto, máximo = todos os sketch_points
+PEN_COUNT_MODE            = "expression"  # "expression" (escala com density) ou "manual"
+PEN_DENSITY_NORM_RANGE    = (0.5, 1.5)    # faixa de normalização do "density" da expressão → fração de pontos usados
+PEN_COUNT_MANUAL_FRACTION = 1.0           # usado só no modo "manual": 0 = mínimo, 1 = máximo
+
+PEN_SEARCH_RADIUS_RANGE = (40, 160)  # px, mapeado a partir de "aggressiveness" (0-1)
+PEN_THICKNESS_JITTER    = 1.5        # px, variação aleatória por traço em torno do "line_thickness" da expressão
+PEN_STROKE_ALPHA        = 48         # 0-255, opacidade de cada traço (acumula translucidez com sobreposição)
+
+# No original, o que limitava o desenho era tempo/quadros de animação, não as canetas
+# "morrerem" sozinhas (raramente acontece, já que a janela de busca acompanha a caneta).
+# PEN_MAX_SECONDS é um placeholder para essa condição de parada — a Etapa 9 vai formalizar
+# a lógica definitiva (provavelmente reaproveitando este mesmo parâmetro).
+PEN_MAX_SECONDS = 60.0
+PEN_MAX_STEPS   = 5000  # teto de segurança absoluto (dificilmente atingido antes do tempo limite)
