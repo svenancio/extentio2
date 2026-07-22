@@ -1,3 +1,4 @@
+import random
 import cv2
 import numpy as np
 from sklearn.cluster import KMeans
@@ -69,6 +70,26 @@ def _stretch_saturate(rgb_colors: np.ndarray, amount: float) -> np.ndarray:
     return np.clip(result, 0, 255)
 
 
+def _random_hue_rotate(rgb_colors: np.ndarray) -> np.ndarray:
+    """
+    Sorteia um único ângulo de rotação de matiz e aplica igualmente a
+    todas as cores da paleta — muda a família de cor usada a cada vez
+    que a paleta é definida, preservando saturação e valor (o que é
+    escuro/claro continua escuro/claro).
+    """
+    colors_uint8 = np.clip(rgb_colors, 0, 255).astype(np.uint8).reshape(-1, 1, 3)
+    hsv = cv2.cvtColor(colors_uint8, cv2.COLOR_RGB2HSV).astype(np.float32)
+    h, s, v = hsv[..., 0], hsv[..., 1], hsv[..., 2]
+
+    rotation_deg = random.uniform(*config.PALETTE_RANDOM_HUE_RANGE)
+    h = (h + rotation_deg / 2) % 180  # OpenCV usa H em [0, 179] (= graus / 2)
+
+    hsv_rotated = np.stack([h, s, v], axis=-1).astype(np.uint8).reshape(-1, 1, 3)
+    rgb_rotated = cv2.cvtColor(hsv_rotated, cv2.COLOR_HSV2RGB)
+    print(f"[Palette] Rotação aleatória de matiz: {rotation_deg:.0f}°")
+    return rgb_rotated.reshape(-1, 3)
+
+
 def extract_palette(sketch_image: np.ndarray, sketch_mask: np.ndarray) -> list:
     """
     Extrai as PALETTE_SIZE cores dominantes do rosto (região dentro da
@@ -91,6 +112,8 @@ def extract_palette(sketch_image: np.ndarray, sketch_mask: np.ndarray) -> list:
 
     adjusted = _adjust_colors(centers)
     adjusted = _stretch_saturate(adjusted, config.PALETTE_SATURATE_AMOUNT)
+    if config.PALETTE_RANDOM_HUE_ENABLED:
+        adjusted = _random_hue_rotate(adjusted)
 
     palette = [
         {"color": tuple(int(c) for c in adjusted[i]), "weight": float(weights[i])}

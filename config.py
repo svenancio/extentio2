@@ -65,6 +65,12 @@ PALETTE_CONTRAST_SCALE    = 1.25  # multiplicador de contraste de luminosidade (
 PALETTE_SATURATE_AMOUNT   = 1.0
 PALETTE_ANALYSIS_SIZE     = 150   # thumbnail (px) usado para acelerar o K-Means, não afeta a paleta final
 
+# Rotação aleatória de matiz, aplicada após a saturação total acima. Sorteia um
+# ângulo por paleta e roda todas as cores igualmente, preservando saturação e
+# valor — muda a família de cor a cada vez que a paleta é definida.
+PALETTE_RANDOM_HUE_ENABLED = True
+PALETTE_RANDOM_HUE_RANGE   = (0, 360)  # graus
+
 # Mapeamento de expressão (blendshapes) → parâmetros de desenho
 EXPRESSION_MAPPING_MODE = "dominant"  # "weighted" (média ponderada) ou "dominant" (expressão dominante rege tudo)
 
@@ -100,13 +106,27 @@ EXPRESSION_STYLES = {
 }
 EXPRESSION_NEUTRAL_THRESHOLD = 0.15  # score mínimo para considerar uma expressão "dominante"
 
+# Ordem de prioridade das partes do rosto (Etapa 8). Grupos no mesmo tier têm
+# prioridade igual entre si (round-robin); tiers anteriores são preenchidos
+# primeiro. Usado para: (a) alocar pontos de contraste extras conforme a
+# densidade sobe, e (b) dar vantagem na disputa por pixels não-ocupados
+# dentro do mesmo passo simultâneo das canetas (Etapa 7).
+PEN_PRIORITY_TIERS = [
+    ["left_eye", "right_eye", "left_iris", "right_iris"],  # olhos
+    ["left_eyebrow", "right_eyebrow"],                       # sobrancelhas
+    ["nose"],                                                # nariz
+    ["upper_lip", "lower_lip", "mouth_outline"],             # boca
+    ["face_oval"],                                           # contorno
+    ["structural"],                                          # estrutural
+]
+
 # Agentes "caneta" — traçado vetorial por proximidade de cor
 # Quantidade de canetas: mínimo = 1 centróide por parte do rosto, máximo = todos os sketch_points
-PEN_COUNT_MODE            = "expression"  # "expression" (escala com density) ou "manual"
+PEN_COUNT_MODE            = "manual"  # "expression" (escala com density) ou "manual"
 PEN_DENSITY_NORM_RANGE    = (0.5, 1.5)    # faixa de normalização do "density" da expressão → fração de pontos usados
 PEN_COUNT_MANUAL_FRACTION = 1.0           # usado só no modo "manual": 0 = mínimo, 1 = máximo
 
-PEN_SEARCH_RADIUS_RANGE = (40, 160)  # px, mapeado a partir de "aggressiveness" (0-1)
+PEN_SEARCH_RADIUS_RANGE = (20, 160)  # px, mapeado a partir de "aggressiveness" (0-1)
 PEN_THICKNESS_JITTER    = 1.5        # px, variação aleatória por traço em torno do "line_thickness" da expressão
 PEN_STROKE_ALPHA        = 48         # 0-255, opacidade de cada traço (acumula translucidez com sobreposição)
 
@@ -114,5 +134,5 @@ PEN_STROKE_ALPHA        = 48         # 0-255, opacidade de cada traço (acumula 
 # "morrerem" sozinhas (raramente acontece, já que a janela de busca acompanha a caneta).
 # PEN_MAX_SECONDS é um placeholder para essa condição de parada — a Etapa 9 vai formalizar
 # a lógica definitiva (provavelmente reaproveitando este mesmo parâmetro).
-PEN_MAX_SECONDS = 60.0
+PEN_MAX_SECONDS = 30.0
 PEN_MAX_STEPS   = 5000  # teto de segurança absoluto (dificilmente atingido antes do tempo limite)

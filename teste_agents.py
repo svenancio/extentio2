@@ -10,6 +10,7 @@ from src.image_utils import ImageProcessor
 from src.detector import FaceDetector
 from src.presence import PresenceDetector
 from src.agents import run_pens
+from src.palette import extract_palette
 
 pygame.init()
 
@@ -75,7 +76,7 @@ def draw_face(face):
     return render_strokes(strokes), len(strokes)
 
 
-print("R = redesenhar (mesma pessoa) | ESC = sair")
+print("R = redesenhar | P = nova paleta (nova rotação de matiz) | ESC = sair")
 
 while True:
     for event in pygame.event.get():
@@ -89,6 +90,12 @@ while True:
             if event.key == pygame.K_r and last_face:
                 canvas_surface, n = draw_face(last_face)
                 status_text = f"{n} traços (redesenhado)"
+            if event.key == pygame.K_p and last_face:
+                last_face["palette"] = extract_palette(
+                    last_face["sketch_image"], last_face["sketch_mask"]
+                )
+                canvas_surface, n = draw_face(last_face)
+                status_text = f"{n} traços (paleta nova)"
 
     if camera.should_capture():
         image = camera.capture()
@@ -120,7 +127,7 @@ while True:
     label = font.render(status_text, True, (255, 0, 0))
     screen.blit(label, (20, 20))
 
-    hint = font.render("R = redesenhar | ESC = sair", True, (180, 180, 180))
+    hint = font.render("R = redesenhar | P = nova paleta | ESC = sair", True, (180, 180, 180))
     screen.blit(hint, (20, config.DISPLAY_HEIGHT - 40))
 
     pygame.display.flip()

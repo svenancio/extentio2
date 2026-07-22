@@ -12,6 +12,14 @@ def _density_fraction(density: float) -> float:
     return max(0.0, min(1.0, (density - lo) / (hi - lo)))
 
 
+def _priority_index(group: str) -> int:
+    """Índice do tier de prioridade de um grupo semântico (menor = mais prioritário)."""
+    for i, tier in enumerate(config.PEN_PRIORITY_TIERS):
+        if group in tier:
+            return i
+    return len(config.PEN_PRIORITY_TIERS)  # grupos não listados vão para o final
+
+
 def select_pen_points(sketch_points: list, density: float) -> list:
     """
     Seleciona os pontos de partida das canetas, variando entre o mínimo
@@ -22,10 +30,15 @@ def select_pen_points(sketch_points: list, density: float) -> list:
     escala com o 'density' da Etapa 6, "manual" usa PEN_COUNT_MANUAL_FRACTION
     fixo do config.py.
 
-    Os pontos de contraste extras são distribuídos em round-robin entre
-    os grupos semânticos, para que o aumento de densidade cubra todas as
-    partes do rosto de forma equilibrada, em vez de esgotar um grupo antes
-    de incluir outro.
+    Os pontos de contraste extras são alocados por ordem de prioridade
+    (PEN_PRIORITY_TIERS, Etapa 8): tiers de maior prioridade (ex: olhos)
+    são preenchidos antes de tiers de prioridade menor (ex: estrutural),
+    com round-robin apenas entre grupos do mesmo tier.
+
+    O resultado final vem ordenado por prioridade — essa ordem também
+    define a sequência de processamento das canetas em cada passo
+    simultâneo da simulação (Etapa 7), dando vantagem a grupos
+    prioritários na disputa por pixels não-ocupados.
     """
     centroids = [p for p in sketch_points if p["type"] == "centroid"]
     contrasts = [p for p in sketch_points if p["type"] == "contrast"]
@@ -40,23 +53,31 @@ def select_pen_points(sketch_points: list, density: float) -> list:
     by_group = {}
     for p in contrasts:
         by_group.setdefault(p["group"], []).append(p)
-    group_names = list(by_group.keys())
+
+    catch_all = [g for g in by_group if _priority_index(g) == len(config.PEN_PRIORITY_TIERS)]
+    tiers = list(config.PEN_PRIORITY_TIERS) + [catch_all]
 
     selected_extra = []
-    idx = 0
-    while len(selected_extra) < num_extra:
-        added = False
-        for name in group_names:
-            if idx < len(by_group[name]):
-                selected_extra.append(by_group[name][idx])
-                added = True
-                if len(selected_extra) >= num_extra:
-                    break
-        if not added:
-            break
-        idx += 1
+    for tier_groups in tiers:
+        tier_groups = [g for g in tier_groups if g in by_group]
+        if not tier_groups or len(selected_extra) >= num_extra:
+            continue
+        idx = 0
+        while len(selected_extra) < num_extra:
+            added = False
+            for name in tier_groups:
+                if idx < len(by_group[name]):
+                    selected_extra.append(by_group[name][idx])
+                    added = True
+                    if len(selected_extra) >= num_extra:
+                        break
+            if not added:
+                break
+            idx += 1
 
-    return centroids + selected_extra
+    combined = centroids + selected_extra
+    combined.sort(key=lambda p: _priority_index(p["group"]))
+    return combined
 
 
 def _nearest_palette_color(pixel_color, palette: list) -> tuple:
@@ -64,6 +85,18 @@ def _nearest_palette_color(pixel_color, palette: list) -> tuple:
     pixel = np.array(pixel_color, dtype=np.float64)
     best = min(palette, key=lambda p: np.sum((np.array(p["color"], dtype=np.float64) - pixel) ** 2))
     return best["color"]
+
+
+def _occupy(occupancy: np.ndarray, x: int, y: int) -> None:
+    """
+    Marca (x, y) e até os 8 vizinhos imediatos (bloco 3x3, recortado nas
+    bordas da imagem) como ocupados — nenhuma outra origem ou destino de
+    traço pode cair ali nem coladinho a esse ponto.
+    """
+    h, w = occupancy.shape
+    y0, y1 = max(0, y - 1), min(h, y + 2)
+    x0, x1 = max(0, x - 1), min(w, x + 2)
+    occupancy[y0:y1, x0:x1] = True
 
 
 def _find_nearby_pixel(image: np.ndarray, occupancy: np.ndarray, origin: tuple,
@@ -105,7 +138,7 @@ def _find_nearby_pixel(image: np.ndarray, occupancy: np.ndarray, origin: tuple,
     chosen_x = x_min + int(xs[idx])
     chosen_y = y_min + int(ys[idx])
 
-    occupancy[chosen_y, chosen_x] = True
+    _occupy(occupancy, chosen_x, chosen_y)
     return (chosen_x, chosen_y)
 
 
@@ -176,7 +209,7 @@ def run_pens(sketch_image: np.ndarray, sketch_points: list, palette: list,
         x = int(min(max(pt["x"], 0.0), 1.0) * (size - 1))
         y = int(min(max(pt["y"], 0.0), 1.0) * (size - 1))
 
-        occupancy[y, x] = True  # marca a origem como ocupada antes de começar
+        _occupy(occupancy, x, y)  # marca a origem (+ vizinhança) como ocupada antes de começar
 
         color = _nearest_palette_color(pt["color"], palette)
         pens.append(Pen((x, y), color, thickness_range, search_radius))
